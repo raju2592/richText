@@ -33,3 +33,8 @@ export const Toolbar = styled(Menu)`
   border-bottom: 2px solid #eee;
   margin-bottom: 20px;
 `
+export const Image = styled('img')`
+  display: block;
+  max-width: 100%;
+  max-height: 20em;
+  box-shadow: ${props => (props.selected ? '0 0 0 2px blue;' : 'none')}`

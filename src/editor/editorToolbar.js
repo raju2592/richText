@@ -30,6 +30,8 @@ const blockButtons = [
 export const buttonTypes = {
   mark: 'mark',
   block: 'block',
+  imageLink: 'imageLink',
+  imageUpload: 'imageUpload',
   save: 'save',
   cancel: 'cancel',
 };
@@ -49,6 +51,20 @@ const EditorToolbar = (props) => {
     isActive: true,
     buttonDetails: { buttonType: buttonTypes.cancel },
     icon: 'cancel',
+  };
+
+  const imageLinkButtonProps = {
+    handleClick,
+    isActive: true,
+    buttonDetails: { buttonType: buttonTypes.imageLink },
+    icon: 'image',
+  };
+
+  const imageUploadButtonProps = {
+    handleClick,
+    isActive: true,
+    buttonDetails: { buttonType: buttonTypes.imageUpload },
+    icon: 'collections',
   };
 
   return (
@@ -79,6 +95,8 @@ const EditorToolbar = (props) => {
         );
       })}
 
+      <EditorButton {...imageLinkButtonProps}/>
+      <EditorButton {...imageUploadButtonProps}/>
       <EditorButton {...saveButtonProps}/>
       <EditorButton {...cancelButtonProps}/>
     </Toolbar>
