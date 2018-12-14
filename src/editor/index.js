@@ -2,6 +2,7 @@ import Notifications, {notify} from 'react-notify-toast';
 import { Editor } from 'slate-react';
 import { Value, Block } from 'slate';
 import React from 'react';
+import { List } from 'immutable';
 
 import EditorToolbar, { buttonTypes } from './editorToolbar';
 import { Image } from './components';
@@ -83,95 +84,121 @@ class RichEditor extends React.Component {
     this.setState({ value });
   }
 
-  // getClosestAncestor(document, path, type) {
-  //   let nodes = document.nodes;
-  //   let node = null;
-  //   let pathPosition = -1;
-  //   for(let i = 0; i < path.length; i++) {
-  //     const index = path[i]
-  //     const currentNode = nodes.get(index);
-  //     if (currentNode.type === type) {
-  //       node = currentNode;
-  //       pathPosition = i;
-  //     }
-  //     nodes = currentNode.nodes;
-  //   }
-  //   const ret = { node, path: path.slice(0, pathPosition + 1) };
-  //   return ret;
-  // }
+  getClosestAncestor(document, path, type) {
+    let nodes = document.nodes;
+    let node = null;
+    let pathPosition = -1;
+    for(let i = 0; i < path.length; i++) {
+      const index = path[i]
+      const currentNode = nodes.get(index);
+      if (currentNode.type === type) {
+        node = currentNode;
+        pathPosition = i;
+      }
+      nodes = currentNode.nodes;
+    }
+    const ret = { node, path: path.slice(0, pathPosition + 1) };
+    return ret;
+  }
 
-  // getNewListNode(listItem, listType) {
-  //   const block = Block.create({
-  //     type: listType,
-  //     nodes:[
-  //       {
-  //         object: 'text',
-  //         leaves: [
-  //           {
-  //             text: '',
-  //           },
-  //         ],
-  //       },
-  //       listItem,
-  //     ]
-  //   });
-  //   return block;
-  // }
+  getNewListNode(listItem, listType) {
+    const block = Block.create({
+      type: listType,
+      // nodes:[
+      //   {
+      //     object: 'text',
+      //     leaves: [
+      //       {
+      //         text: '',
+      //       },
+      //     ],
+      //   },
+      //   listItem,
+      // ]
+    });
+    return block;
+  }
 
-  // indent(editor, path) {
-  //   let { document } = editor.value;
-  //   const {
-  //     node: closestListItem,
-  //     path: closestListItemPath
-  //   } = this.getClosestAncestor(document, path, 'list-item');
+  indent(editor, path) {
+    let { document } = editor.value;
+    const {
+      node: closestListItem,
+      path: closestListItemPath
+    } = this.getClosestAncestor(document, path, 'list-item');
 
-  //   // console.log(JSON.stringify(closestListItemAncestor.toJS()), closestListItemPath);
-  //   if (!closestListItem) return;
-  //   if(closestListItem[closestListItem.length - 1] === 0) {
-  //     console.log("no sibling");
-  //     return;
-  //   }
-  //   const siblingPath = closestListItemPath.slice(0);
-  //   siblingPath[siblingPath.length -1]--;
-  //   const sibling = document.getNode(siblingPath);
-  //   if (sibling.type !== 'list-item') {
-  //     return;
-  //   }
+    const sibling = document.getPreviousSibling(closestListItem.key);
+    if (!sibling || sibling.type !== 'list-item') return;
 
-  //   const listType = this.getClosestAncestor(document, siblingPath, 'bulleted-list').node
-  //     ? 'bulleted-list' : 'numbered-list';
+    const lastIndex = sibling.nodes.size;
+    const lastChild = sibling.nodes.last();
 
-  //   const siblingDesc = sibling.nodes.size;
-  //   const lastSiblingDescPath = siblingPath.slice(0);
-  //   lastSiblingDescPath.push(siblingDesc - 1);
-  //   console.log(lastSiblingDescPath, siblingDesc, siblingPath);
-  //   const lastSiblingDesc = document.getNode(lastSiblingDescPath);
+    const listType = document.getParent(sibling.key).type;
 
-  //   if (lastSiblingDesc.type !== listType) {
-  //     const newListNode = this.getNewListNode(closestListItem.toJS(), listType);
-  //     print(newListNode);
-  //     print(sibling);
-  //     editor
-  //       .insertNodeByPath(siblingPath, siblingDesc, newListNode);
-  //   } else {
+    if(lastChild && lastChild.type !==listType) {
+      const newList = this.getNewListNode(null, listType);
+      editor.insertNodeByKey(sibling.key, lastIndex, newList);
+      console.log(closestListItem.key, newList.key);
+      editor.moveNodeByKey(closestListItem.key, newList.key, 0);
+    }
+  }
 
-  //   }
+  indent_(editor, path) {
+    let { document } = editor.value;
+    const {
+      node: closestListItem,
+      path: closestListItemPath
+    } = this.getClosestAncestor(document, path, 'list-item');
+
+    // console.log(JSON.stringify(closestListItemAncestor.toJS()), closestListItemPath);
+    if (!closestListItem) return;
+    if(closestListItem[closestListItem.length - 1] === 0) {
+      console.log("no sibling");
+      return;
+    }
+    const siblingPath = closestListItemPath.slice(0);
+    siblingPath[siblingPath.length -1]--;
+    const sibling = document.getNode(siblingPath);
+    if (sibling.type !== 'list-item') {
+      return;
+    }
+
+    const listType = this.getClosestAncestor(document, siblingPath, 'bulleted-list').node
+      ? 'bulleted-list' : 'numbered-list';
+
+    const siblingDesc = sibling.nodes.size;
+    const lastSiblingDescPath = siblingPath.slice(0);
+    lastSiblingDescPath.push(siblingDesc - 1);
+    console.log(lastSiblingDescPath, siblingDesc, siblingPath);
+    const lastSiblingDesc = document.getNode(lastSiblingDescPath);
+
+    if (lastSiblingDesc.type !== listType) {
+      const newListNode = this.getNewListNode(closestListItem.toJS(), listType);
+      // print(newListNode);
+      // print(sibling);
+      console.log(closestListItemPath);
+      editor.insertNodeByPath(siblingPath, siblingDesc, newListNode);
+      editor.moveNodeByPath(List(closestListItemPath), newListNode.key, 0);
+      // editor
+      //   .insertNodeByPath(siblingPath, siblingDesc, newListNode);
+    } else {
+
+    }
     // const last = sibling.nodes.get(sibling.nodes.size() - 1);
     // if (last.type === listType) {
     //   editor.removeNodeByPath(closestListItemAncestor);
     //   editor.insertNodeByKey()
     // }
-  // }
+  }
 
   onKeyDown(event, editor, next) {
-    // if(event.key === 'Tab') {
-    //   let focusPath = editor.value.selection.focus.path;
-    //   focusPath = focusPath.toJS();
-    //   this.indent(editor, focusPath);
-    // } else {
-    //   next()
-    // }
-    next();
+    if(event.key === 'Tab') {
+      let focusPath = editor.value.selection.focus.path;
+      focusPath = focusPath.toJS();
+      this.indent(editor, focusPath);
+    } else {
+      next()
+    }
+    // next();
   }
 
   saveContent() {
