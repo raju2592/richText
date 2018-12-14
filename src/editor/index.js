@@ -54,23 +54,31 @@ const schema = {
 const DEFAULT_NODE = 'paragraph'
 
 class RichEditor extends React.Component {
-  constructor() {
+  constructor(props) {
     super();
     const initialValue = this.getInitialValue();
     this.state = {
       value: initialValue,
+      isSaveActive: true,
+      blockNodeLimit: props.blockNodeLimit || -1, // -1 means no limit
     };
     this.ref = (editor) => {
       this.editor = editor;
     };
-    this.readOnly = false;
     this.notificationDuration = 1500;
+    this.onClickBlockNodeLimit = this.onClickBlockNodeLimit.bind(this);
     this.imageInputRef = React.createRef();
     this.onChange = this.onChange.bind(this);
     this.handleImageUpload = this.handleImageUpload.bind(this);
     this.handleToolbarButtonClick = this.handleToolbarButtonClick.bind(this);
     this.renderNode = this.renderNode.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
+  }
+
+  onClickBlockNodeLimit() {
+    const newLimit = window.prompt('Enter the new limit:');
+    const lim = parseInt(newLimit);
+    if (lim > 0) this.setState({ blockNodeLimit: lim });
   }
 
   getInitialValue() {
@@ -80,7 +88,9 @@ class RichEditor extends React.Component {
   }
 
   onChange({ value }) {
-    this.setState({ value });
+    const isSaveActive = this.state.blockNodeLimit === -1 
+      || value.document.nodes.size <= this.state.blockNodeLimit;
+    this.setState({ value, isSaveActive });
   }
 
   // getClosestAncestor(document, path, type) {
@@ -341,8 +351,10 @@ class RichEditor extends React.Component {
           activeMarks={this.state.value.activeMarks}
           document={this.state.value.document}
           blocks={this.state.value.blocks}
-          isSaveActive={true}
+          blockNodeLimit={this.state.blockNodeLimit}
+          isSaveActive={this.state.isSaveActive}
           handleClick={this.handleToolbarButtonClick}
+          onClickBlockNodeLimit={this.onClickBlockNodeLimit}
         />
 
         <Editor

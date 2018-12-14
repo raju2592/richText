@@ -37,11 +37,14 @@ export const buttonTypes = {
 };
 
 const EditorToolbar = (props) => {
-  const { handleClick, activeMarks, document, blocks, isSaveActive, limit } = props;
+  const {
+    handleClick, activeMarks, document, blocks, isSaveActive, blockNodeLimit, onClickBlockNodeLimit
+  } = props;
   
   const saveButtonProps = {
     handleClick: isSaveActive ? handleClick : null,
     isActive: isSaveActive,
+    disabled: !isSaveActive,
     buttonDetails: { buttonType: buttonTypes.save },
     icon: 'save',
   };
@@ -108,6 +111,9 @@ const EditorToolbar = (props) => {
       <EditorButton {...imageUploadButtonProps}/>
       <EditorButton {...saveButtonProps}/>
       <EditorButton {...cancelButtonProps}/>
+      <Button onMouseDown={onClickBlockNodeLimit} active={true}>
+        <span>blockNodeLimit: {blockNodeLimit === -1 ? Infinity : blockNodeLimit}</span>
+      </Button>
     </Toolbar>
   );
 };
