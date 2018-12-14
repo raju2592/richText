@@ -6,6 +6,9 @@ import React from 'react';
 import EditorToolbar, { buttonTypes } from './editorToolbar';
 import { Image } from './components';
 
+// function print(val) {
+//   console.log(JSON.stringify(val.toJS()));
+// }
 const emptyDocument = Value.fromJSON({
   document: {
     nodes: [
@@ -48,11 +51,12 @@ const schema = {
   },
 };
 
+const DEFAULT_NODE = 'paragraph'
+
 class RichEditor extends React.Component {
   constructor() {
     super();
     const initialValue = this.getInitialValue();
-    console.log('initial value is ..', initialValue);
     this.state = {
       value: initialValue,
     };
@@ -66,6 +70,7 @@ class RichEditor extends React.Component {
     this.handleImageUpload = this.handleImageUpload.bind(this);
     this.handleToolbarButtonClick = this.handleToolbarButtonClick.bind(this);
     this.renderNode = this.renderNode.bind(this);
+    this.onKeyDown = this.onKeyDown.bind(this);
   }
 
   getInitialValue() {
@@ -76,6 +81,97 @@ class RichEditor extends React.Component {
 
   onChange({ value }) {
     this.setState({ value });
+  }
+
+  // getClosestAncestor(document, path, type) {
+  //   let nodes = document.nodes;
+  //   let node = null;
+  //   let pathPosition = -1;
+  //   for(let i = 0; i < path.length; i++) {
+  //     const index = path[i]
+  //     const currentNode = nodes.get(index);
+  //     if (currentNode.type === type) {
+  //       node = currentNode;
+  //       pathPosition = i;
+  //     }
+  //     nodes = currentNode.nodes;
+  //   }
+  //   const ret = { node, path: path.slice(0, pathPosition + 1) };
+  //   return ret;
+  // }
+
+  // getNewListNode(listItem, listType) {
+  //   const block = Block.create({
+  //     type: listType,
+  //     nodes:[
+  //       {
+  //         object: 'text',
+  //         leaves: [
+  //           {
+  //             text: '',
+  //           },
+  //         ],
+  //       },
+  //       listItem,
+  //     ]
+  //   });
+  //   return block;
+  // }
+
+  // indent(editor, path) {
+  //   let { document } = editor.value;
+  //   const {
+  //     node: closestListItem,
+  //     path: closestListItemPath
+  //   } = this.getClosestAncestor(document, path, 'list-item');
+
+  //   // console.log(JSON.stringify(closestListItemAncestor.toJS()), closestListItemPath);
+  //   if (!closestListItem) return;
+  //   if(closestListItem[closestListItem.length - 1] === 0) {
+  //     console.log("no sibling");
+  //     return;
+  //   }
+  //   const siblingPath = closestListItemPath.slice(0);
+  //   siblingPath[siblingPath.length -1]--;
+  //   const sibling = document.getNode(siblingPath);
+  //   if (sibling.type !== 'list-item') {
+  //     return;
+  //   }
+
+  //   const listType = this.getClosestAncestor(document, siblingPath, 'bulleted-list').node
+  //     ? 'bulleted-list' : 'numbered-list';
+
+  //   const siblingDesc = sibling.nodes.size;
+  //   const lastSiblingDescPath = siblingPath.slice(0);
+  //   lastSiblingDescPath.push(siblingDesc - 1);
+  //   console.log(lastSiblingDescPath, siblingDesc, siblingPath);
+  //   const lastSiblingDesc = document.getNode(lastSiblingDescPath);
+
+  //   if (lastSiblingDesc.type !== listType) {
+  //     const newListNode = this.getNewListNode(closestListItem.toJS(), listType);
+  //     print(newListNode);
+  //     print(sibling);
+  //     editor
+  //       .insertNodeByPath(siblingPath, siblingDesc, newListNode);
+  //   } else {
+
+  //   }
+    // const last = sibling.nodes.get(sibling.nodes.size() - 1);
+    // if (last.type === listType) {
+    //   editor.removeNodeByPath(closestListItemAncestor);
+    //   editor.insertNodeByKey()
+    // }
+  // }
+
+  onKeyDown(event, editor, next) {
+    // if(event.key === 'Tab') {
+    //   let focusPath = editor.value.selection.focus.path;
+    //   focusPath = focusPath.toJS();
+    //   this.indent(editor, focusPath);
+    // } else {
+    //   next()
+    // }
+    next();
   }
 
   saveContent() {
@@ -114,31 +210,123 @@ class RichEditor extends React.Component {
     fileReader.readAsDataURL(file);
   }
 
+  hasBlock(type) {
+    return this.state.value.blocks.some((node) => node.type === type);
+  }
+
+  onBlockButtonClick(type) {
+    const { editor } = this
+    const { value } = editor
+    const { document } = value
+
+    // Handle everything but list buttons.
+    if (type !== 'bulleted-list' && type !== 'numbered-list') {
+      const isActive = this.hasBlock(type)
+      const isList = this.hasBlock('list-item')
+
+      if (isList) {
+        editor
+          .setBlocks(isActive ? DEFAULT_NODE : type)
+          .unwrapBlock('bulleted-list')
+          .unwrapBlock('numbered-list')
+      } else {
+        editor.setBlocks(isActive ? DEFAULT_NODE : type)
+      }
+    } else {
+      // Handle the extra wrapping required for list buttons.
+      const isList = this.hasBlock('list-item')
+      const isType = value.blocks.some(block => {
+        return !!document.getClosest(block.key, parent => parent.type === type)
+      })
+
+      if (isList && isType) {
+        editor
+          .setBlocks(DEFAULT_NODE)
+          .unwrapBlock('bulleted-list')
+          .unwrapBlock('numbered-list')
+      } else if (isList) {
+        editor
+          .unwrapBlock(
+            type === 'bulleted-list' ? 'numbered-list' : 'bulleted-list'
+          )
+          .wrapBlock(type)
+      } else {
+        editor.setBlocks('list-item').wrapBlock(type)
+      }
+    }
+  }
+
   handleToolbarButtonClick(event, buttonDetails) {
+    event.preventDefault();
     const buttonType = buttonDetails.buttonType;
-    if (buttonType === buttonTypes.save) {
-      this.saveContent();
-    } else if (buttonType === buttonTypes.cancel) {
-      this.restoreContent();
-    } else if (buttonType === buttonTypes.imageUpload) {
-      this.imageInputRef.current.click();
-    } else if (buttonType === buttonTypes.imageLink) {
-      const src = window.prompt('Enter the URL of the image:')
-      if (!src) return
-      this.insertImage(src);
+    switch (buttonType) {
+      case buttonTypes.save:
+        this.saveContent();
+        break;
+
+      case buttonTypes.cancel:
+        this.restoreContent();
+        break;
+
+      case buttonTypes.imageUpload:
+        this.imageInputRef.current.click();
+        break;
+
+      case buttonTypes.imageLink:
+        const src = window.prompt('Enter the URL of the image:')
+        if (!src) return;
+        this.insertImage(src);
+        break;
+
+      case buttonTypes.block:
+        this.onBlockButtonClick(buttonDetails.blockType);
+        break;
+      
+      case buttonTypes.mark:
+        this.editor.toggleMark(buttonDetails.markType);
+        break;
+      
+      default:
+    }
+  }
+
+  renderMark = (props, editor, next) => {
+    const { children, mark, attributes } = props
+
+    switch (mark.type) {
+      case 'bold':
+        return <strong {...attributes}>{children}</strong>
+      case 'code':
+        return <code {...attributes}>{children}</code>
+      case 'italic':
+        return <em {...attributes}>{children}</em>
+      case 'underlined':
+        return <u {...attributes}>{children}</u>
+      default:
+        return next()
     }
   }
 
   renderNode = (props, editor, next) => {
-    const { attributes, node, isFocused } = props
+    const { attributes, node, isFocused, children } = props
 
     switch (node.type) {
       case 'image': {
-        console.log(attributes);
         const src = node.data.get('src')
         return <Image src={src} selected={isFocused} {...attributes} />
       }
-
+      case 'block-quote':
+        return <blockquote {...attributes}>{children}</blockquote>
+      case 'heading-one':
+        return <h1 {...attributes}>{children}</h1>
+      case 'heading-two':
+        return <h2 {...attributes}>{children}</h2>
+      case 'list-item':
+        return <li {...attributes}>{children}</li>
+      case 'bulleted-list':
+        return <ul {...attributes}>{children}</ul>
+      case 'numbered-list':
+        return <ol {...attributes}>{children}</ol>
       default: {
         return next()
       }
@@ -151,19 +339,21 @@ class RichEditor extends React.Component {
         <Notifications/>
         <EditorToolbar
           activeMarks={this.state.value.activeMarks}
+          document={this.state.value.document}
           blocks={this.state.value.blocks}
           isSaveActive={true}
           handleClick={this.handleToolbarButtonClick}
         />
 
         <Editor
-          spellCheck
           autoFocus
           placeholder="Enter some rich text..."
           ref={this.ref}
           schema={schema}
           value={this.state.value}
           onChange={this.onChange}
+          onKeyDown={this.onKeyDown}
+          renderMark={this.renderMark}
           renderNode={this.renderNode}
           readOnly={this.readOnly}
         />

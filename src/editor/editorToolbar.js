@@ -37,7 +37,7 @@ export const buttonTypes = {
 };
 
 const EditorToolbar = (props) => {
-  const { handleClick, activeMarks, blocks, isSaveActive } = props;
+  const { handleClick, activeMarks, document, blocks, isSaveActive, limit } = props;
   
   const saveButtonProps = {
     handleClick: isSaveActive ? handleClick : null,
@@ -83,7 +83,16 @@ const EditorToolbar = (props) => {
       })}
 
       {blockButtons.map(([type, icon]) => {
-        const isActive = blocks.some((node) => node.type === type);
+        const hasBlock = (type) => blocks.some((node) => node.type === type);
+        let isActive = hasBlock(type);
+        if (['numbered-list', 'bulleted-list'].includes(type)) {
+
+          if (blocks.size > 0) {
+            const parent = document.getParent(blocks.first().key);
+            isActive = hasBlock('list-item') && parent && parent.type === type;
+          }
+        }
+    
         const buttonProps = {
           buttonDetails: { buttonType: buttonTypes.block, blockType: type },
           isActive,
