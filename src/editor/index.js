@@ -150,7 +150,7 @@ class RichEditor extends React.Component {
     const { value } = editor
     const { document } = value
 
-    // Handle everything but list buttons.
+
     if (type !== 'bulleted-list' && type !== 'numbered-list') {
       const isActive = this.hasBlock(type)
       const isList = this.hasBlock('list-item')
@@ -164,7 +164,6 @@ class RichEditor extends React.Component {
         editor.setBlocks(isActive ? DEFAULT_NODE : type)
       }
     } else {
-      // Handle the extra wrapping required for list buttons.
       const isList = this.hasBlock('list-item')
       const isType = value.blocks.some(block => {
         return !!document.getClosest(block.key, parent => parent.type === type)
