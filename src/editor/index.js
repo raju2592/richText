@@ -6,9 +6,6 @@ import React from 'react';
 import EditorToolbar, { buttonTypes } from './editorToolbar';
 import { Image } from './components';
 
-// function print(val) {
-//   console.log(JSON.stringify(val.toJS()));
-// }
 const emptyDocument = Value.fromJSON({
   document: {
     nodes: [
@@ -65,7 +62,7 @@ class RichEditor extends React.Component {
     this.ref = (editor) => {
       this.editor = editor;
     };
-    this.notificationDuration = 1500;
+    this.notificationDuration = props.notificationDuration || 1500;
     this.onClickBlockNodeLimit = this.onClickBlockNodeLimit.bind(this);
     this.imageInputRef = React.createRef();
     this.onChange = this.onChange.bind(this);
@@ -93,107 +90,31 @@ class RichEditor extends React.Component {
     this.setState({ value, isSaveActive });
   }
 
-  // getClosestAncestor(document, path, type) {
-  //   let nodes = document.nodes;
-  //   let node = null;
-  //   let pathPosition = -1;
-  //   for(let i = 0; i < path.length; i++) {
-  //     const index = path[i]
-  //     const currentNode = nodes.get(index);
-  //     if (currentNode.type === type) {
-  //       node = currentNode;
-  //       pathPosition = i;
-  //     }
-  //     nodes = currentNode.nodes;
-  //   }
-  //   const ret = { node, path: path.slice(0, pathPosition + 1) };
-  //   return ret;
-  // }
-
-  // getNewListNode(listItem, listType) {
-  //   const block = Block.create({
-  //     type: listType,
-  //     nodes:[
-  //       {
-  //         object: 'text',
-  //         leaves: [
-  //           {
-  //             text: '',
-  //           },
-  //         ],
-  //       },
-  //       listItem,
-  //     ]
-  //   });
-  //   return block;
-  // }
-
-  // indent(editor, path) {
-  //   let { document } = editor.value;
-  //   const {
-  //     node: closestListItem,
-  //     path: closestListItemPath
-  //   } = this.getClosestAncestor(document, path, 'list-item');
-
-  //   // console.log(JSON.stringify(closestListItemAncestor.toJS()), closestListItemPath);
-  //   if (!closestListItem) return;
-  //   if(closestListItem[closestListItem.length - 1] === 0) {
-  //     console.log("no sibling");
-  //     return;
-  //   }
-  //   const siblingPath = closestListItemPath.slice(0);
-  //   siblingPath[siblingPath.length -1]--;
-  //   const sibling = document.getNode(siblingPath);
-  //   if (sibling.type !== 'list-item') {
-  //     return;
-  //   }
-
-  //   const listType = this.getClosestAncestor(document, siblingPath, 'bulleted-list').node
-  //     ? 'bulleted-list' : 'numbered-list';
-
-  //   const siblingDesc = sibling.nodes.size;
-  //   const lastSiblingDescPath = siblingPath.slice(0);
-  //   lastSiblingDescPath.push(siblingDesc - 1);
-  //   console.log(lastSiblingDescPath, siblingDesc, siblingPath);
-  //   const lastSiblingDesc = document.getNode(lastSiblingDescPath);
-
-  //   if (lastSiblingDesc.type !== listType) {
-  //     const newListNode = this.getNewListNode(closestListItem.toJS(), listType);
-  //     print(newListNode);
-  //     print(sibling);
-  //     editor
-  //       .insertNodeByPath(siblingPath, siblingDesc, newListNode);
-  //   } else {
-
-  //   }
-    // const last = sibling.nodes.get(sibling.nodes.size() - 1);
-    // if (last.type === listType) {
-    //   editor.removeNodeByPath(closestListItemAncestor);
-    //   editor.insertNodeByKey()
-    // }
-  // }
-
   onKeyDown(event, editor, next) {
-    // if(event.key === 'Tab') {
-    //   let focusPath = editor.value.selection.focus.path;
-    //   focusPath = focusPath.toJS();
-    //   this.indent(editor, focusPath);
-    // } else {
-    //   next()
-    // }
-    next();
+    const keyToMark = {
+      b: 'bold',
+      i: 'italic',
+      u: 'underlined',
+      '`': 'code',
+    };
+
+    if (!event.ctrlKey) return next();
+    event.preventDefault();
+    const mark = keyToMark[event.key];
+    if (!mark) return;
+    this.editor.toggleMark(mark);
   }
 
   saveContent() {
     const editorContent = JSON.stringify(this.state.value.toJSON());
     localStorage.setItem('editorContent', editorContent);
-    notify.show('💾 saved ✔', 'success');
+    notify.show('💾 saved ✔', 'success', this.notificationDuration);
   }
 
   restoreContent() {
     const initialValue = this.getInitialValue();
     this.setState({ value: initialValue });
-    notify.show('restored saved content ✔', 'success');
+    notify.show('restored saved content ✔', 'success', this.notificationDuration);
   }
 
   insertImage(src) {
