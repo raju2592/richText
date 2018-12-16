@@ -146,8 +146,76 @@ class RichEditor extends React.Component {
     }
   }
 
-  unindent(editor, anchorNodePath) {
-    console.log('unindenting .. ');
+  unindent(editor, path) {
+    const document = editor.value.document;
+    const currentNode = document.getNode(path);
+
+    const currentListItem = document.getClosest(currentNode.key,
+      (parent) => parent.type === 'list-item',
+    )
+  
+    if(!currentListItem) {
+      console.log('list item not found');
+      return;
+    }
+
+    const enclosingListNode = document.getParent(currentListItem.key);
+    if (!enclosingListNode || 
+      (enclosingListNode.type !== 'bulleted-list'
+        && enclosingListNode.type !== 'numbered-list')) return;
+    
+    const futureSibling = document.getParent(enclosingListNode.key);
+    if (!futureSibling || futureSibling.type !== 'list-item') {
+      console.log('future subling not found');
+      return;
+    }
+
+    const futureParent = document.getParent(futureSibling.key);
+    if (!futureParent || 
+      (futureParent.type !== 'bulleted-list'
+        && futureParent.type !== 'numbered-list')) {
+      console.log('furure parent not found');
+      return;
+    }
+
+    const followingItems = enclosingListNode.nodes.skipUntil(i => i === currentListItem)
+      .rest();
+    const enclosingListSize = enclosingListNode.nodes.size;
+
+    let siblingPosition = 0;
+    for(let i = 0; i < futureParent.nodes.size; i++) {
+      if (futureParent.get(i) === futureSibling) {
+        siblingPosition = i;
+        break;
+      }
+    }
+
+    const moveToList = (list, items) => {
+      items.forEach((item) => {
+        editor.moveNodeByKey(item.key, list.key, list.nodes.size);
+      });
+    };
+
+    let lastChildOfCurrentItem = currentListItem.nodes.last();
+
+    if (!followingItems.isEmpty()) {
+      if (lastChildOfCurrentItem.type !== enclosingListNode.type) {
+        const newList = Block.create({
+          type: enclosingListNode.type,
+        });
+        editor.insertNodeByKey(
+          currentListItem.key, currentListItem.nodes.size, newList,
+        )
+        lastChildOfCurrentItem = newList;
+      }
+      moveToList(lastChildOfCurrentItem, followingItems);
+    }
+
+    editor.moveNodeByKey(currentListItem.key, futureParent.key, siblingPosition + 1);
+    if (followingItems.size + 1 === enclosingListSize) {
+      console.log('removing ')
+      editor.removeNodeByKey(enclosingListNode.key);
+    }
   }
 
   onKeyDown(event, editor, next) {
