@@ -303,9 +303,9 @@ class RichEditor extends React.Component {
   }
 
   onBlockButtonClick(type) {
-    const { editor } = this
-    const { value } = editor
-    const { document } = value
+    const { editor } = this;
+    const { value } = editor;
+    const { document } = value;
     const { blocks } = value;
 
     const relevantBlocks = blocks.map((block) => {
@@ -318,21 +318,21 @@ class RichEditor extends React.Component {
     });
     
     if (type !== 'bulleted-list' && type !== 'numbered-list') {
-      const isActive = this.hasBlock(type)
-      const isList = this.hasBlock('list-item')
+      const isActive = this.hasBlock(relevantBlocks, type);
+      const isList = this.hasBlock(relevantBlocks, 'list-item');
 
       if (isList) {
         editor
           .setBlocks(isActive ? DEFAULT_NODE : type)
           .unwrapBlock('bulleted-list')
-          .unwrapBlock('numbered-list')
+          .unwrapBlock('numbered-list');
       } else {
-        editor.setBlocks(isActive ? DEFAULT_NODE : type)
+        editor.setBlocks(isActive ? DEFAULT_NODE : type);
       }
     } else {
       const isList = this.hasBlock(relevantBlocks, 'list-item');
       const isType = relevantBlocks.some(block => {
-        return !!document.getClosest(block.key, parent => parent.type === type)
+        return !!document.getClosest(block.key, parent => parent.type === type);
       })
 
       if (isList && isType) {
@@ -342,22 +342,32 @@ class RichEditor extends React.Component {
           } else editor.setNodeByKey(block.key, { type: DEFAULT_NODE });
         });
         editor.unwrapBlock('bulleted-list').unwrapBlock('numbered-list')
-        // editor
-        //   .setBlocks(DEFAULT_NODE)
-        //   .unwrapBlock('bulleted-list')
-        //   .unwrapBlock('numbered-list')
       } else if (isList) {
         editor
           .unwrapBlock(
             type === 'bulleted-list' ? 'numbered-list' : 'bulleted-list'
           )
-          .wrapBlock(type)
+          .wrapBlock(type);
       } else {
-        blocks.forEach((block) => {
-          editor.wrapBlockByKey(block.key, 'list-item');
+        const list = Block.create({
+          type,
         });
-        editor.wrapBlock(type);
-        // editor.setBlocks('list-item').wrapBlock(type)
+        const focus = editor.value.selection.focus;
+        editor.moveAnchorTo(focus.path, focus.offset);
+        
+        const node = document.getNode(focus.path);
+        const block = document.getClosest(node.key,
+          (parent) => parent.object === 'block',
+        );
+
+        editor.insertBlock(list)
+        const item = Block.create({
+          type: 'list-item',
+          nodes: [ block ],
+        })
+
+        editor.removeNodeByKey(block.key);
+        editor.insertNodeByKey(list.key, list.nodes.size, item);
       }
     }
   }

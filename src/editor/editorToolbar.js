@@ -86,7 +86,16 @@ const EditorToolbar = (props) => {
       })}
 
       {blockButtons.map(([type, icon]) => {
-        const hasBlock = (type) => blocks.some((node) => node.type === type);
+
+        const relevantBlocks = blocks.map((block) => {
+          if (block.type === 'paragraph') {
+            const parent = document.getParent(block.key);
+            if (parent && parent.type === 'list-item') return parent;
+            return block;
+          }
+          return block;
+        });
+        const hasBlock = (type) => relevantBlocks.some((node) => node.type === type);
         let isActive = hasBlock(type);
         if (['numbered-list', 'bulleted-list'].includes(type)) {
 
