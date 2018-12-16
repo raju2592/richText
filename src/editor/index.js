@@ -6,6 +6,8 @@ import React from 'react';
 import EditorToolbar, { buttonTypes } from './editorToolbar';
 import { Image } from './components';
 
+const fmt = (val) => JSON.stringify(val.toJS());
+
 const emptyDocument = Value.fromJSON({
   document: {
     nodes: [
@@ -85,24 +87,91 @@ class RichEditor extends React.Component {
   }
 
   onChange({ value }) {
+    console.log('value is ..', fmt(value));
     const isSaveActive = this.state.blockNodeLimit === -1 
       || value.document.nodes.size <= this.state.blockNodeLimit;
     this.setState({ value, isSaveActive });
   }
 
-  onKeyDown(event, editor, next) {
-    const keyToMark = {
-      b: 'bold',
-      i: 'italic',
-      u: 'underlined',
-      '`': 'code',
-    };
+  getClosestAncestor(document, path, type) {
+    let nodes = document.nodes;
+    let node = null;
+    for(let i = 0; i < path.length; i++) {
+      const index = path[i]
+      const currentNode = nodes.get(index);
+      if (currentNode.type === type) {
+        node = currentNode;
+      }
+      nodes = currentNode.nodes;
+    }
+    return node;
+  }
 
-    if (!event.ctrlKey) return next();
-    event.preventDefault();
-    const mark = keyToMark[event.key];
-    if (!mark) return;
-    this.editor.toggleMark(mark);
+  indent(editor, path) {
+    const document = editor.value.document;
+    const currentNode = document.getNode(path);
+
+    const currentListItem = document.getClosest(currentNode.key,
+      (parent) => parent.type === 'list-item',
+    )
+  
+    if(!currentListItem) {
+      console.log('list item not found');
+      return;
+    }
+
+    const previousSibling = document.getPreviousSibling(currentListItem.key);
+
+    if (!previousSibling || previousSibling.type !== 'list-item') {
+      console.log('no previous list item');
+      return;
+    }
+
+    const listType = document.getParent(currentListItem.key).type;
+  
+    const lastChildOfSibling = previousSibling.nodes.last();
+    const childCountOfSibling = previousSibling.nodes.size;
+
+    if (!lastChildOfSibling || lastChildOfSibling.type !== listType) {
+      const newList = Block.create({
+        type: listType,
+        nodes: [currentListItem],
+      });
+      editor.removeNodeByKey(currentListItem.key);
+      editor.insertNodeByKey(previousSibling.key, childCountOfSibling, newList);
+    } else {
+      editor.moveNodeByKey(
+        currentListItem.key, lastChildOfSibling.key, lastChildOfSibling.nodes.size
+      );
+    }
+  }
+
+  unindent(editor, anchorNodePath) {
+    console.log('unindenting .. ');
+  }
+
+  onKeyDown(event, editor, next) {
+    if (event.ctrlKey) {
+      const keyToMark = {
+        b: 'bold',
+        i: 'italic',
+        u: 'underlined',
+        '`': 'code',
+      };
+
+      event.preventDefault();
+      const mark = keyToMark[event.key];
+      if (!mark) return;
+      this.editor.toggleMark(mark);
+    } else if (event.key === 'Tab') {
+      event.preventDefault();
+      const anchorNodePath = editor.value.selection.focus.path;
+      if (!event.shiftKey) {
+        this.indent(editor, anchorNodePath);
+      } else {
+        this.unindent(editor, anchorNodePath)
+      }
+    } else next();
   }
 
   saveContent() {
@@ -141,16 +210,25 @@ class RichEditor extends React.Component {
     fileReader.readAsDataURL(file);
   }
 
-  hasBlock(type) {
-    return this.state.value.blocks.some((node) => node.type === type);
+  hasBlock(relevantBlocks, type) {
+    return relevantBlocks.some((node) => node.type === type);
   }
 
   onBlockButtonClick(type) {
     const { editor } = this
     const { value } = editor
     const { document } = value
+    const { blocks } = value;
 
-
+    const relevantBlocks = blocks.map((block) => {
+      if (block.type === 'paragraph') {
+        const parent = document.getParent(block.key);
+        if (parent && parent.type === 'list-item') return parent;
+        return block;
+      }
+      return block;
+    });
+    
     if (type !== 'bulleted-list' && type !== 'numbered-list') {
       const isActive = this.hasBlock(type)
       const isList = this.hasBlock('list-item')
@@ -164,16 +242,22 @@ class RichEditor extends React.Component {
         editor.setBlocks(isActive ? DEFAULT_NODE : type)
       }
     } else {
-      const isList = this.hasBlock('list-item')
-      const isType = value.blocks.some(block => {
+      const isList = this.hasBlock(relevantBlocks, 'list-item');
+      const isType = relevantBlocks.some(block => {
         return !!document.getClosest(block.key, parent => parent.type === type)
       })
 
       if (isList && isType) {
-        editor
-          .setBlocks(DEFAULT_NODE)
-          .unwrapBlock('bulleted-list')
-          .unwrapBlock('numbered-list')
+        relevantBlocks.forEach((block) => {
+          if (block.type === 'list-item') {
+            editor.unwrapBlockByKey(block.key, { object: 'block' });
+          } else editor.setNodeByKey(block.key, { type: DEFAULT_NODE });
+        });
+        editor.unwrapBlock('bulleted-list').unwrapBlock('numbered-list')
+        // editor
+        //   .setBlocks(DEFAULT_NODE)
+        //   .unwrapBlock('bulleted-list')
+        //   .unwrapBlock('numbered-list')
       } else if (isList) {
         editor
           .unwrapBlock(
@@ -181,7 +265,11 @@ class RichEditor extends React.Component {
           )
           .wrapBlock(type)
       } else {
-        editor.setBlocks('list-item').wrapBlock(type)
+        blocks.forEach((block) => {
+          editor.wrapBlockByKey(block.key, 'list-item');
+        });
+        editor.wrapBlock(type);
+        // editor.setBlocks('list-item').wrapBlock(type)
       }
     }
   }
