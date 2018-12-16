@@ -87,7 +87,7 @@ class RichEditor extends React.Component {
   }
 
   onChange({ value }) {
-    console.log('value is ..', fmt(value));
+    // console.log('value is ..', fmt(value));
     const isSaveActive = this.state.blockNodeLimit === -1 
       || value.document.nodes.size <= this.state.blockNodeLimit;
     this.setState({ value, isSaveActive });
@@ -218,6 +218,22 @@ class RichEditor extends React.Component {
     }
   }
 
+  handleEnter(editor, path) {
+    const document = editor.value.document;
+    const currentNode = document.getNode(path);
+
+    const currentBlock = document.getClosest(currentNode.key,
+      (parent) => parent.object === 'block',
+    );
+    
+    const parentBlock = document.getParent(currentBlock.key);
+    if (parentBlock.type === 'list-item') {
+      editor.splitBlock(2);
+    } else {
+      editor.splitBlock();
+    }
+  };
+
   onKeyDown(event, editor, next) {
     if (event.ctrlKey) {
       const keyToMark = {
@@ -239,6 +255,10 @@ class RichEditor extends React.Component {
       } else {
         this.unindent(editor, anchorNodePath)
       }
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      const anchorNodePath = editor.value.selection.focus.path;
+      this.handleEnter(editor, anchorNodePath);
     } else next();
   }
 
