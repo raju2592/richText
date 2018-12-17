@@ -6,8 +6,6 @@ import React from 'react';
 import EditorToolbar, { buttonTypes } from './editorToolbar';
 import { Image } from './components';
 
-const fmt = (val) => JSON.stringify(val.toJS());
-
 const emptyDocument = Value.fromJSON({
   document: {
     nodes: [
@@ -87,7 +85,6 @@ class RichEditor extends React.Component {
   }
 
   onChange({ value }) {
-    // console.log('value is ..', fmt(value));
     const isSaveActive = this.state.blockNodeLimit === -1 
       || value.document.nodes.size <= this.state.blockNodeLimit;
     this.setState({ value, isSaveActive });
@@ -116,14 +113,12 @@ class RichEditor extends React.Component {
     )
   
     if(!currentListItem) {
-      console.log('list item not found');
       return;
     }
 
     const previousSibling = document.getPreviousSibling(currentListItem.key);
 
     if (!previousSibling || previousSibling.type !== 'list-item') {
-      console.log('no previous list item');
       return;
     }
 
@@ -155,7 +150,6 @@ class RichEditor extends React.Component {
     )
   
     if(!currentListItem) {
-      console.log('list item not found');
       return;
     }
 
@@ -166,7 +160,6 @@ class RichEditor extends React.Component {
     
     const futureSibling = document.getParent(enclosingListNode.key);
     if (!futureSibling || futureSibling.type !== 'list-item') {
-      console.log('future subling not found');
       return;
     }
 
@@ -174,7 +167,6 @@ class RichEditor extends React.Component {
     if (!futureParent || 
       (futureParent.type !== 'bulleted-list'
         && futureParent.type !== 'numbered-list')) {
-      console.log('furure parent not found');
       return;
     }
 
@@ -213,7 +205,6 @@ class RichEditor extends React.Component {
 
     editor.moveNodeByKey(currentListItem.key, futureParent.key, siblingPosition + 1);
     if (followingItems.size + 1 === enclosingListSize) {
-      console.log('removing ')
       editor.removeNodeByKey(enclosingListNode.key);
     }
   }
